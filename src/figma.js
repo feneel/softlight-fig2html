@@ -22,20 +22,28 @@ export function* walk(node) {
 }
 
 export async function findFrame(doc, frameId) {
+  if (!doc?.document) throw new Error("Invalid Figma file JSON (missing document)");
+  const root = doc.document;
+
   if (frameId) {
-    for (const n of walk(doc.document)) {
-      if (n.id === frameId && /^(FRAME|COMPONENT|INSTANCE)$/.test(n.type))
-        return n;
+    for (const node of walk(root)) {
+      if (node.id === frameId) return node;
     }
-
-    throw new Error(`Frame with ID: ${frameId} not found!`);
+    throw new Error(`Node with ID ${frameId} not found`);
   }
 
-  for (const page of doc.document.children || []) {
-    for (const n of page.children || []) {
-      if (n.type === "FRAME") return n;
-    }
+  // Prefer a FRAME
+  for (const node of walk(root)) {
+    if (node.type === "FRAME") return node;
+  }
+  //Accept common containers
+  for (const node of walk(root)) {
+    if (/^(COMPONENT|INSTANCE|SECTION|GROUP)$/.test(node.type)) return node;
+  }
+  //Anything that has an absoluteBoundingBox
+  for (const node of walk(root)) {
+    if (node.absoluteBoundingBox) return node;
   }
 
-  throw new Error("No new frame found in file!");
+  throw new Error("No suitable render root (FRAME/COMPONENT/INSTANCE/SECTION/GROUP) found");
 }
