@@ -68,6 +68,66 @@ export function emitCSS(frameSize, frameStyle= {}){
       // if we collected any center transforms, emit them
       if (transformParts.length)
         styles.push(`transform:${transformParts.join(" ")}`);
+    
+    
+      if (p.type === "TEXT") {
+        styles.push("display:inline-block");
+        styles.push(
+          `font-family:"Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+        );
+        if (p.fontFamily)
+          styles.push(
+            `font-family:"${p.fontFamily}", "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif`
+          );
+        if (p.fontSize) styles.push(`font-size:${fmt(p.fontSize)}px`);
+        if (p.lineHeight) styles.push(`line-height:${fmt(p.lineHeight)}px`);
+        if (p.letterSpacing != null)
+          styles.push(`letter-spacing:${fmt(p.letterSpacing)}px`);
+        if (p.fontWeight) styles.push(`font-weight:${p.fontWeight}`);
+        if (p.color) styles.push(`color:${p.color}`);
+        if (p.textAlignHorizontal)
+          styles.push(`text-align:${p.textAlignHorizontal.toLowerCase()}`);
+        if (p.textCase) styles.push(`text-transform:${p.textCase}`);
+        if (p.textDecoration)
+          styles.push(`text-decoration:${p.textDecoration}`);
+
+        // inside the TEXT branch where you set styles:
+        if (p.textAlignHorizontal) {
+          styles.push(`text-align:${p.textAlignHorizontal.toLowerCase()}`);
+        } else if (p.centerTextX) {
+          // geometry-based fallback: box is centered, so center the text inside it
+          styles.push("text-align:center");
+        }
+
+        const mode = p.textAutoResize || "NONE";
+        if (mode === "WIDTH_AND_HEIGHT") {
+          styles.push(
+            "width:auto",
+            "height:auto",
+            "white-space:pre",
+            "word-break:normal",
+            "overflow:visible"
+          );
+        } else if (mode === "HEIGHT") {
+          styles.push(
+            `width:${fmt(p.width)}px`,
+            "height:auto",
+            "white-space:pre-wrap",
+            "word-break:normal",
+            "overflow:hidden"
+          );
+        } else {
+          styles.push(
+            `width:${fmt(p.width)}px`,
+            `height:${fmt(p.height)}px`,
+            "white-space:pre-wrap",
+            "word-break:normal",
+            "overflow:hidden"
+          );
+        }
+      }
+    
+    
     }
 
 
