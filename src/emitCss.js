@@ -1,11 +1,11 @@
-export function emitCSS(frameSize, frameStyle= {}){
+export function emitCSS(frameSize, placed, frameStyle= {}){
 
     const lines= []
     const w = num(frameSize.width)
     const h = num(frameSize.height)
 
     //generic preview
-    lines.push(`html body{margin:0; height:100%}`)
+    lines.push(`html, body{margin:0; height:100%}`)
     lines.push(`body{min-height:100vh; background:#f6f7f9;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility}`)
 
     lines.push(`.frame-viewport{min-height:100vh;display:grid;place-content:center}`)
@@ -16,7 +16,7 @@ export function emitCSS(frameSize, frameStyle= {}){
         "position:relative",
         `width:${fmt(w)}px`,
         `height:${fmt(h)}px`,
-        `background:${frameStyle.bg || transparent}`
+        `background:${frameStyle.bg || "transparent"}`
     ]
 
 
@@ -85,8 +85,6 @@ export function emitCSS(frameSize, frameStyle= {}){
           styles.push(`letter-spacing:${fmt(p.letterSpacing)}px`);
         if (p.fontWeight) styles.push(`font-weight:${p.fontWeight}`);
         if (p.color) styles.push(`color:${p.color}`);
-        if (p.textAlignHorizontal)
-          styles.push(`text-align:${p.textAlignHorizontal.toLowerCase()}`);
         if (p.textCase) styles.push(`text-transform:${p.textCase}`);
         if (p.textDecoration)
           styles.push(`text-decoration:${p.textDecoration}`);
@@ -140,6 +138,27 @@ export function emitCSS(frameSize, frameStyle= {}){
         }
       }
     
+    lines.push(`.${p.className}{${styles.join(";")}}`);
+    if (p.stroke && p.type !== "text") {
+      const br = p.borderRadius ? `border-radius:${p.borderRadius};` : "";
+      const shadows = [];
+      if (p.stroke.align === "INSIDE") {
+        shadows.push(`inset 0 0 0 ${fmt(p.stroke.width)}px ${p.stroke.color}`);
+      } else if (p.stroke.align === "OUTSIDE") {
+        shadows.push(`0 0 0 ${fmt(p.stroke.width)}px ${p.stroke.color}`);
+      } else {
+        const half = Math.max(0.5, p.stroke.width / 2);
+        shadows.push(`inset 0 0 0 ${fmt(half)}px ${p.stroke.color}`);
+        shadows.push(`0 0 0 ${fmt(half)}px ${p.stroke.color}`);
+      }
+      lines.push(
+        `.${
+          p.className
+        }::before{content:"";position:absolute;inset:0;${br}box-shadow:${shadows.join(
+          ","
+        )};pointer-events:none}`
+      );
+    }
     
     }
 
