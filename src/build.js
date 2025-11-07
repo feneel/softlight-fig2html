@@ -147,6 +147,105 @@ function extractBackgroundBlur(effects) {
 }
 
 
+function cornerRadius(node) {
+  if (Array.isArray(node.rectangleCornerRadii)) {
+    const [tl, tr, br, bl] = node.rectangleCornerRadii.map((v) =>
+      Math.max(0, +v)
+    );
+    return `${tl}px ${tr}px ${br}px ${bl}px`;
+  }
+  if (typeof node.cornerRadius === "number" && node.cornerRadius > 0)
+    return `${node.cornerRadius}px`;
+  if (node.type === "ELLIPSE") return "50%";
+  return null;
+}
+
+function textStyle(node) {
+  const s = node.style || {};
+  let letterPx;
+  if (typeof s.letterSpacing === "number") {
+    letterPx = s.letterSpacing;
+  } else if (
+    typeof s.letterSpacingPercent === "number" &&
+    typeof s.fontSize === "number"
+  ) {
+    letterPx = (s.letterSpacingPercent / 100) * s.fontSize;
+  }
+  return {
+    fontFamily: s.fontFamily,
+    fontSize: s.fontSize,
+    lineHeight: typeof s.lineHeightPx === "number" ? s.lineHeightPx : undefined,
+    letterSpacing: letterPx,
+    fontWeight: s.fontWeight,
+    textAlignHorizontal: node.textAlignHorizontal,
+    color: resolveFill(node.fills) || undefined,
+    textCase: node.textCase ? node.textCase.toLowerCase() : undefined,
+    textDecoration: node.textDecoration
+      ? node.textDecoration.toLowerCase()
+      : undefined,
+    textAutoResize: node.textAutoResize || "NONE",
+  };
+}
+
+function isCentered(frameSize, bb, fx, fy, axis = "x") {
+  const f =
+    axis === "x"
+      ? { size: frameSize.width, start: bb.x - fx, len: bb.width }
+      : { size: frameSize.height, start: bb.y - fy, len: bb.height };
+  const nodeCenter = f.start + f.len / 2;
+  const frameCenter = f.size / 2;
+  return Math.abs(nodeCenter - frameCenter) < 0.5; // sub-pixel tolerance
+}
+
+function isCenteredHoriz(frameBox, bb, fx) {
+  const left = bb.x - fx;
+  const right = frameBox.width - (left + bb.width);
+  return Math.abs(left - right) < 0.5; // symmetric margins => centered
+}
+
+function isPaintedContainer(node) {
+  if (!node) return false;
+  if (!["FRAME", "COMPONENT", "INSTANCE"].includes(node.type)) return false;
+  const hasFill =
+    Array.isArray(node.fills) && node.fills.some((p) => p?.visible !== false);
+  const hasStroke =
+    Array.isArray(node.strokes) &&
+    node.strokes.some((p) => p?.visible !== false);
+  const hasEffects =
+    Array.isArray(node.effects) &&
+    node.effects.some((e) => e?.visible !== false);
+  const hasBgColor = !!node.backgroundColor;
+  return hasFill || hasStroke || hasEffects || hasBgColor;
+}
+
+function flattenRenderable(node, out = [], rootId = null) {
+  if (!node) return out;
+  if (isPaintedContainer(node) && node.id !== rootId) {
+    out.push({ ...node, __asBackground: true });
+  }
+  const kids = node.children || [];
+  for (const child of kids) {
+    if (
+      [
+        "RECTANGLE",
+        "ELLIPSE",
+        "LINE",
+        "TEXT",
+        "VECTOR",
+        "BOOLEAN_OPERATION",
+        "STAR",
+        "POLYGON",
+      ].includes(child.type)
+    ) {
+      out.push(child);
+    }
+    flattenRenderable(child, out, rootId);
+  }
+  return out;
+}
+
+
+
 export async function build({frame, outDir}){
   const frameBox = computeFrameBounds(frame);
 
