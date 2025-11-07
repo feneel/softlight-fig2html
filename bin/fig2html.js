@@ -49,15 +49,14 @@ if (!process.env.FIGMA_TOKEN) {
 const { fileKey, frameIdFromUrl } = parseFileArg(mainArg);
 const fileKeyFinal = fileKey || mainArg;
 // Allow explicit FRAME_ID as a separate arg like "0:1"
-const explicitFrameId = argv.find((a) => /^[0-9]+:[0-9]+$/.test(a));
-const frameIdFinal = explicitFrameId || frameIdFromUrl;
+const frameIdFinal = argv.find((a) => /^[0-9]+:[0-9]+$/.test(a)) || frameIdFromUrl;
 
 try {
   const outDir = path.resolve(process.cwd(), "dist");
   await fs.mkdir(outDir, { recursive: true });
 
   const doc = await getFile(fileKeyFinal, process.env.FIGMA_TOKEN);
-  const frame = findFrame(doc, frameIdFinal);
+  const frame = await findFrame(doc, frameIdFinal);
 
   console.log("✅ Figma file fetched.");
   console.log(
@@ -83,7 +82,7 @@ try {
     outDir,
     fileKey: fileKeyFinal,
     token: process.env.FIGMA_TOKEN,
-    trace: flags.trace,
+    // trace: flags.trace,
   });
 
   if (flags.trace && result?.trace) {

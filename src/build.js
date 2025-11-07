@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { emitCSS } from "./emitCss";
-import { emitHTML } from "./emitHTML";
+import { emitCSS } from "./emitCss.js";
+import { emitHTML } from "./emitHtml.js";
+import { exportVectors } from "./vectors.js";
 
 //color helpers
 function rgba({ r = 0, g = 0, b = 0, a = 1 }) {
@@ -246,7 +247,7 @@ function flattenRenderable(node, out = [], rootId = null) {
 
 
 
-export async function build({ frame, outDir }) {
+export async function build({ frame, outDir, fileKey, token }) {
   const frameBox = computeFrameBounds(frame);
   const fx = frameBox.x;
   const fy = frameBox.y;
