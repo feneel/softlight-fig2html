@@ -306,8 +306,15 @@ export async function build({ frame, outDir }) {
   }
 
 
-  // TODO: Export vectors to SVGs and attach src
-  
+  const vecMap = await exportVectors({
+    fileKey,
+    token,
+    nodes: placed.filter((p) => p.isVector),
+    outDir,
+  });
+  for (const p of placed) {
+    if (p.isVector) p.src = vecMap[p.id] || null;
+  }  
 
   const css = emitCSS(frameBox, placed, {
     bg: frameBg,
