@@ -6,8 +6,8 @@ import { emitHTML } from "./emitHTML";
 //color helpers
 function rgba({ r = 0, g = 0, b = 0, a = 1 }) {
   const R = Math.round(r * 255);
-  const G = Math.round(r * 255);
-  const B = Math.round(r * 255);
+  const G = Math.round(g * 255);
+  const B = Math.round(b * 255);
   return `rgba(${R}, ${G},  ${B},  ${a})`;
 }
 
@@ -246,14 +246,73 @@ function flattenRenderable(node, out = [], rootId = null) {
 
 
 
-export async function build({frame, outDir}){
+export async function build({ frame, outDir }) {
   const frameBox = computeFrameBounds(frame);
+  const fx = frameBox.x;
+  const fy = frameBox.y;
 
+  const frameBg = resolveFill(frame.fills, frame.backgroundColor);
+  const frameRadius = cornerRadius(frame);
+  const frameClips = frame.clipsContent === true;
+
+  const layers = flattenRenderable(frame, [], frame.id).filter(
+    (n) => n.visible !== false
+  );
+
+  let z = 0;
   const placed = [];
+  for (const n of layers) {
+    const bb = n.absoluteBoundingBox;
+
+    if (!bb) continue;
+
+    const base = {
+      id: n.id,
+      className: classNameFromId(n.id + (n.__asBackground ? "_bg" : "")),
+      left: bb.x - fx,
+      top: bb.y - fy,
+      width: bb.width,
+      height: bb.height,
+      opacity: typeof n.opacity === "number" ? n.opacity : undefined,
+      type: n.__asBackground ? "FRAME_BG" : n.type,
+      z: z++,
+      centerX: isCentered(frameBox, bb, fx, fy, "x"),
+      centerY: isCentered(frameBox, bb, fx, fy, "y"),
+      centerTextX: isCenteredHoriz(frameBox, bb, fx),
+    };
+
+    if (n.__asBackground || ["RECTANGLE", "ELLIPSE", "LINE"].includes(n.type)) {
+      const blur = extractBackgroundBlur(n.effects) || {};
+      placed.push({
+        ...base,
+        background: resolveFill(n.fills, n.backgroundColor),
+        borderRadius: cornerRadius(n),
+        stroke: resolveStroke(n),
+        boxShadow: effectsToBoxShadow(n.effects),
+        hasBackgroundBlur: blur.hasBackgroundBlur || false,
+        blurRadius: blur.blurRadius || 0,
+      });
+    } else if (n.type === "TEXT") {
+      placed.push({
+        ...base,
+        characters: n.characters || "",
+        ...textStyle(n),
+      });
+    } else if (
+      ["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON"].includes(n.type)
+    ) {
+      placed.push({ ...base, isVector: true });
+    }
+  }
+
+
+  // TODO: Export vectors to SVGs and attach src
+  
+
   const css = emitCSS(frameBox, placed, {
-    bg: "transparent",
-    radius: null,
-    clip: false,
+    bg: frameBg,
+    radius: frameRadius,
+    clip: frameClips,
   });
   const htmlInner = emitHTML(frame, placed);
 
@@ -274,10 +333,9 @@ ${htmlInner}
 </html>`;
 
   await fs.mkdir(outDir, { recursive: true });
-  await fs.writeFile(path.join(outDir, "styles.css"), css, "utf-8");
-  await fs.writeFile(path.join(outDir, "index.html"), doc, "utf-8");
+  await fs.writeFile(path.join(outDir, "styles.css"), css, "utf8");
+  await fs.writeFile(path.join(outDir, "index.html"), doc, "utf8");
 
-  return { trace: null };
 }
 
 //helper for utilities
