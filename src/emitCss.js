@@ -125,6 +125,19 @@ export function emitCSS(frameSize, frameStyle= {}){
             "overflow:hidden"
           );
         }
+      } else {
+        // Non-TEXT layers
+        if (p.background) {
+          if (p.background.startsWith("linear-gradient("))
+            styles.push(`background-image:${p.background}`);
+          else styles.push(`background:${p.background}`);
+        }
+        if (p.borderRadius) styles.push(`border-radius:${p.borderRadius}`);
+        if (p.boxShadow) styles.push(`box-shadow:${p.boxShadow}`);
+        if (p.hasBackgroundBlur && p.blurRadius > 0) {
+          styles.push(`backdrop-filter:blur(${fmt(p.blurRadius)}px)`);
+          styles.push(`-webkit-backdrop-filter:blur(${fmt(p.blurRadius)}px)`);
+        }
       }
     
     
