@@ -3,6 +3,64 @@ import path from "node:path";
 import { emitCSS } from "./emitCss";
 import { emitHTML } from "./emitHTML";
 
+//color helpers
+function rgba({ r = 0, g = 0, b = 0, a = 1 }) {
+  const R = Math.round(r * 255);
+  const G = Math.round(r * 255);
+  const B = Math.round(r * 255);
+  return `rgba(${R}, ${G},  ${B},  ${a})`;
+}
+
+//gradient from handles and frame bg
+
+function gradientAngleFromHandles(p) {
+  const h = p.gradientHandlePositions;
+  if (!h || h.length < 2) return null;
+  const dx = h[1].x - h[0].x;
+  const dy = h[1].y - h[0].y;
+  const deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90; // rotate to CSS coordinates
+  return ((Math.round(deg) % 360) + 360) % 360;
+}
+
+function gradientAngleFromTransform(p) {
+  const m = p.gradientTransform;
+  if (!Array.isArray(m) || !m[0] || !m[1]) return null;
+  const x = m[0][0] ?? 1,
+    y = m[1][0] ?? 0;
+  const deg = (Math.atan2(y, x) * 180) / Math.PI;
+  return ((Math.round(deg) % 360) + 360) % 360;
+}
+
+function gradientToCss(p) {
+  let deg = gradientAngleFromHandles(p);
+  if (deg == null) deg = gradientAngleFromTransform(p) ?? 0;
+  const stops = (p.gradientStops || []).map((s) => {
+    const c = s.color || {};
+    const col = `rgba(${Math.round((c.r ?? 0) * 255)}, ${Math.round(
+      (c.g ?? 0) * 255
+    )}, ${Math.round((c.b ?? 0) * 255)}, ${c.a ?? 1})`;
+    const pos = Math.round((s.position ?? 0) * 100);
+    return `${col} ${pos}%`;
+  });
+  return `linear-gradient(${deg}deg, ${stops.join(", ")})`;
+}
+
+function resolveFill(paints, fallbackBackgroundColor) {
+  if (paints && paints.length) {
+    const vis = paints.find((p) => p?.visible !== false);
+    if (vis) {
+      if (vis.type === "SOLID") {
+        const a =
+          typeof vis.opacity === "number" ? vis.opacity : vis.color?.a ?? 1;
+        return rgba({ ...(vis.color || {}), a });
+      }
+      if (vis.type === "GRADIENT_LINEAR") return gradientToCss(vis);
+    }
+  }
+  if (fallbackBackgroundColor) return rgba(fallbackBackgroundColor);
+  return null;
+}
+
 //Bounds helpers
 
 function collectBoxes(node, out = []) {
@@ -34,19 +92,18 @@ function computeFrameBounds(frame) {
 
   throw new Error("Cannot compute bounds");
 }
-
-
-
-
 export async function build({frame, outDir}){
+  const frameBox = computeFrameBounds(frame);
 
-    const frameBox = computeFrameBounds(frame)
+  const placed = [];
+  const css = emitCSS(frameBox, placed, {
+    bg: "transparent",
+    radius: null,
+    clip: false,
+  });
+  const htmlInner = emitHTML(frame, placed);
 
-    const placed = []
-    const css = emitCSS(frameBox, placed, {bg:"transparent", radius: null, clip: false})
-    const htmlInner = emitHTML(frame, placed)
-
-    const doc= `<!doctype html>
+  const doc = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -60,14 +117,16 @@ export async function build({frame, outDir}){
 <body>
 ${htmlInner}
 </body>
-</html>`
+</html>`;
 
-    await fs.mkdir(outDir, {recursive: true})
-    await fs.writeFile(path.join(outDir, "styles.css"), css, "utf-8")
-    await fs.writeFile(path.join(outDir, "index.html"), doc, "utf-8")
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(path.join(outDir, "styles.css"), css, "utf-8");
+  await fs.writeFile(path.join(outDir, "index.html"), doc, "utf-8");
 
-    return {trace: null}
+  return { trace: null };
 }
 
-
-
+//helper for utilities
+function classNameFromId(id) {
+  return `n_${String(id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+}
