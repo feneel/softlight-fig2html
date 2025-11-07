@@ -30,6 +30,47 @@ export function emitCSS(frameSize, frameStyle= {}){
     lines.push(`.frame-root{${rootStyles.join(";")}}`)
 
 
+
+    for (const p of placed) {
+      const styles = [];
+      styles.push("position:absolute");
+      styles.push(`left:${fmt(p.left)}px`);
+      styles.push(`top:${fmt(p.top)}px`);
+      styles.push(`width:${fmt(p.width)}px`);
+      styles.push(`height:${fmt(p.height)}px`);
+      styles.push(`z-index:${p.z}`);
+      if (p.opacity != null && p.opacity < 1)
+        styles.push(`opacity:${p.opacity}`);
+
+      let transformParts = [];
+      if (p.centerX) {
+        styles.push(`left:50%`);
+        transformParts.push(`translateX(-50%)`);
+      } else {
+        styles.push(`left:${fmt(p.left)}px`);
+      }
+      if (p.centerY) {
+        styles.push(`top:50%`);
+        transformParts.push(`translateY(-50%)`);
+      } else {
+        styles.push(`top:${fmt(p.top)}px`);
+      }
+
+      // size & stacking
+      styles.push(`width:${fmt(p.width)}px`);
+      styles.push(`height:${fmt(p.height)}px`);
+      styles.push(`z-index:${p.z}`);
+
+      // existing opacity etc...
+      if (p.opacity != null && p.opacity < 1)
+        styles.push(`opacity:${p.opacity}`);
+
+      // if we collected any center transforms, emit them
+      if (transformParts.length)
+        styles.push(`transform:${transformParts.join(" ")}`);
+    }
+
+
     return lines.join("\n")
 
 }
